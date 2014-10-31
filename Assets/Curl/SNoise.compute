@@ -1,0 +1,30 @@
+﻿#include "SNoise.hlsl"
+#pragma kernel CSMain
+
+
+
+static const float Dt = 0.01;
+static const float4 Dx = float4(1e-3, 1e-3, 1e3, 1e3);
+static const float2 Scale = float2(0.01, 0.01);
+
+StructuredBuffer<float2> PosIn;
+RWStructuredBuffer<float2> PosOut;
+
+
+
+float2 Noise2(float2 xy) {
+	xy *= Scale;
+	return float2(snoise(xy), snoise(xy + float2(10, 0)));
+}
+float2 Curl(float2 xy) {
+	float dpdy = (Noise2(float2(xy.x, xy.y + Dx.y)) - Noise2(float2(xy.x, xy.y - Dx.y))) * (0.5 * Dx.w);
+	float dpdx = (Noise2(float2(xy.x + Dx.x, xy.y)) - Noise2(float2(xy.x - Dx.x, xy.y))) * (0.5 * Dx.z);
+	return float2(dpdy, -dpdx);
+}
+
+[numthreads(64,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID) {
+	float2 xy = PosIn[id.x];
+	xy += Curl(xy) * Dt;
+    PosOut[id.x] = frac(xy);
+}
