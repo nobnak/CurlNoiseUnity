@@ -1,30 +1,31 @@
-#include "SNoise.hlsl"
 #pragma kernel CSMain
+#include "SNoise.hlsl"
+#define WIDTH 64
 
 
 
 static const float4 Dx = float4(1e-3, 1e-3, 1e3, 1e3);
 static const float2 ScaleNoise = float2(0.1, 0.1);
-static const float Speed = 3.0;
 
+float Time;
+float Speed;
 float Dt;
-float3 Area;
 StructuredBuffer<float2> PosIn;
 RWStructuredBuffer<float2> PosOut;
 
 
 
-float Noise2(float2 xy) {
-	xy *= ScaleNoise;
-	return snoise(xy);
+float Noise2(float3 xyt) {
+	xyt.xy *= ScaleNoise;
+	return snoise(xyt);
 }
 float2 Curl(float2 xy) {
-	float dpdy = (Noise2(float2(xy.x, xy.y + Dx.y)) - Noise2(float2(xy.x, xy.y - Dx.y))) * (0.5 * Dx.w);
-	float dpdx = (Noise2(float2(xy.x + Dx.x, xy.y)) - Noise2(float2(xy.x - Dx.x, xy.y))) * (0.5 * Dx.z);
+	float dpdy = (Noise2(float3(xy.x, xy.y + Dx.y, Time)) - Noise2(float3(xy.x, xy.y - Dx.y, Time))) * (0.5 * Dx.w);
+	float dpdx = (Noise2(float3(xy.x + Dx.x, xy.y, Time)) - Noise2(float3(xy.x - Dx.x, xy.y, Time))) * (0.5 * Dx.z);
 	return float2(dpdy, -dpdx);
 }
 
-[numthreads(64,1,1)]
+[numthreads(WIDTH,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID) {
 	float2 xy = PosIn[id.x];
 	xy += Speed * Curl(xy) * Dt;

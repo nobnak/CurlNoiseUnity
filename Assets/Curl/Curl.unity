@@ -102,6 +102,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   nGroups: 100
+  Speed: 10
+  TimeScale: .100000001
+  L: {x: 10, y: 10, z: 10, w: 0}
   curl: {fileID: 7200000, guid: 78222b94dae85054ca895f16e3d6ff63, type: 3}
   particleFab: {fileID: 100000, guid: 9b9349ac85f32624081c1e5260519baa, type: 2}
 --- !u!4 &765613246
@@ -176,7 +179,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 5
+  orthographic size: 20
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -195,7 +198,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1994509882}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 5, y: 5, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}

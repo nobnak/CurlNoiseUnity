@@ -8,12 +8,18 @@ public class Curl : MonoBehaviour {
 	public const int KERNEL = 0;
 	public const string SHADER_POS_IN = "PosIn";
 	public const string SHADER_POS_OUT = "PosOut";
+	public const string SHADER_TIME = "Time";
 	public const string SHADER_DT = "Dt";
 	public const string SHADER_DX = "Dx";
 	public const string SHADER_SCALE = "Scale";
+	public const string SHADER_SPEED = "Speed";
 	public const string SHADER_ID = "Id";
+	public const string SHADER_L = "L";
 
 	public int nGroups = 1;
+	public float Speed = 1;
+	public float TimeScale = 1;
+	public Vector4 L = new Vector4(10f, 10f, 10f, 0f);
 	public ComputeShader curl;
 	public GameObject particleFab;
 
@@ -27,9 +33,12 @@ public class Curl : MonoBehaviour {
 	void Update () {
 		CheckInit();
 
+		var time = Time.timeSinceLevelLoad;
 		var dt = Time.deltaTime;
 
 		curl.SetFloat(SHADER_DT, dt);
+		curl.SetFloat(SHADER_SPEED, Speed);
+		curl.SetFloat(SHADER_TIME, time * TimeScale);
 		curl.SetBuffer(KERNEL, SHADER_POS_IN, _posBuf0);
 		curl.SetBuffer(KERNEL, SHADER_POS_OUT, _posBuf1);
 		curl.Dispatch(KERNEL, nGroups, 1, 1);
@@ -51,7 +60,7 @@ public class Curl : MonoBehaviour {
 		_posBuf1 = new ComputeBuffer(_poses.Length, Marshal.SizeOf(_poses[0]));
 
 		for (var i = 0; i < _nThreads; i++)
-			_poses[i] = new Vector2(5f * (Random.value - 0.5f), 5f * (Random.value - 0.5f));
+			_poses[i] = new Vector2(L.x * Random.value, L.y * Random.value);
 		_posBuf0.SetData(_poses);
 		_posBuf1.SetData(_poses);
 
