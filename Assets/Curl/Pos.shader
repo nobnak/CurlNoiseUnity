@@ -1,6 +1,6 @@
-﻿Shader "Custom/SNoise" {
+﻿Shader "Custom/Pos" {
 	Properties {
-		_MainTex ("Base (RGB)", 2D) = "white" {}
+		_Color ("Color", Color) = (1, 1, 1, 1)
 	}
 	SubShader {
 		Tags { "RenderType"="Opaque" }
@@ -8,11 +8,14 @@
 		
 		Pass {
 			CGPROGRAM
+			#pragma target 5.0
 			#pragma vertex vert
 			#pragma fragment frag
 			#include "UnityCG.cginc"
 
-			sampler2D _MainTex;
+			float4 _Color;
+			int Id;
+			StructuredBuffer<float2> PosIn;			
 
 			struct Input {
 				float4 vertex : POSITION;
@@ -24,17 +27,20 @@
 			};
 			
 			vs2ps vert(Input IN) {
+				float2 center = PosIn[Id];
+				float4 posWorld = mul(_Object2World, IN.vertex);
+				posWorld.xy += center;
+			
 				vs2ps OUT;
-				OUT.vertex = mul(UNITY_MATRIX_MVP, IN.vertex);
+				OUT.vertex = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, posWorld));
 				OUT.uv = IN.uv;
 				return OUT;
 			}
 			
 			float4 frag(vs2ps IN) : COLOR {
-				float4 c = tex2D(_MainTex, IN.uv);
-				return c;
+				return _Color;
 			}
 			ENDCG
 		}
-	} 
+	}
 }
