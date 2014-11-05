@@ -101,7 +101,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab1dc437f8593ff409ceb646d368e256, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nGroups: 100
+  nGroups: 150
   speed: 10
   timeScale: .00999999978
   noiseScale: .0199999996

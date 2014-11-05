@@ -21,7 +21,7 @@ RWStructuredBuffer<float3> PosOut;
 
 
 
-float Noise(float4 xyzt) {
+float Pot(float4 xyzt) {
 	return snoise(xyzt);
 }
 float3 Curl(float3 xyz) {
@@ -30,12 +30,12 @@ float3 Curl(float3 xyz) {
 	float4 p2 = float4(xyz, Time) + Psi2;
 	float4 p3 = float4(xyz, Time) + Psi3;
 
-	float dp1dy = (Noise(p1 + Dy) - Noise(p1 - Dy)) * InvDx;
-	float dp1dz = (Noise(p1 + Dz) - Noise(p1 - Dz)) * InvDx;
-	float dp2dz = (Noise(p2 + Dz) - Noise(p2 - Dz)) * InvDx;
-	float dp2dx = (Noise(p2 + Dx) - Noise(p2 - Dx)) * InvDx;
-	float dp3dx = (Noise(p3 + Dx) - Noise(p3 - Dx)) * InvDx;
-	float dp3dy = (Noise(p3 + Dy) - Noise(p3 - Dy)) * InvDx;
+	float dp1dy = (Pot(p1 + Dy) - Pot(p1 - Dy)) * InvDx;
+	float dp1dz = (Pot(p1 + Dz) - Pot(p1 - Dz)) * InvDx;
+	float dp2dz = (Pot(p2 + Dz) - Pot(p2 - Dz)) * InvDx;
+	float dp2dx = (Pot(p2 + Dx) - Pot(p2 - Dx)) * InvDx;
+	float dp3dx = (Pot(p3 + Dx) - Pot(p3 - Dx)) * InvDx;
+	float dp3dy = (Pot(p3 + Dy) - Pot(p3 - Dy)) * InvDx;
 	
 	return float3(dp3dy - dp2dz, dp1dz - dp3dx, dp2dx - dp1dy);
 }
