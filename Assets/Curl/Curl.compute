@@ -1,33 +1,48 @@
 #pragma kernel CSMain
 #include "SNoise.hlsl"
 #define WIDTH 64
+#define EPSILON 1e-3
 
 
+static const float4 Dx = float4(EPSILON, 0, 0, 0);
+static const float4 Dy = float4(0, EPSILON, 0, 0);
+static const float4 Dz = float4(0, 0, EPSILON, 0);
+static const float InvDx = 1.0 / (2.0 * EPSILON);
+static const float4 Psi1 = float4(10, 0, 0, 0);
+static const float4 Psi2 = float4(0, 10, 0, 0);
+static const float4 Psi3 = float4(0, 0, 10, 0);
 
-static const float4 Dx = float4(1e-3, 1e-3, 1e3, 1e3);
-static const float2 ScaleNoise = float2(0.1, 0.1);
-
+float Dt;
 float Time;
 float Speed;
-float Dt;
-StructuredBuffer<float2> PosIn;
-RWStructuredBuffer<float2> PosOut;
+float NoiseScale = 0.1;
+StructuredBuffer<float3> PosIn;
+RWStructuredBuffer<float3> PosOut;
 
 
 
-float Noise2(float3 xyt) {
-	xyt.xy *= ScaleNoise;
-	return snoise(xyt);
+float Noise(float4 xyzt) {
+	return snoise(xyzt);
 }
-float2 Curl(float2 xy) {
-	float dpdy = (Noise2(float3(xy.x, xy.y + Dx.y, Time)) - Noise2(float3(xy.x, xy.y - Dx.y, Time))) * (0.5 * Dx.w);
-	float dpdx = (Noise2(float3(xy.x + Dx.x, xy.y, Time)) - Noise2(float3(xy.x - Dx.x, xy.y, Time))) * (0.5 * Dx.z);
-	return float2(dpdy, -dpdx);
+float3 Curl(float3 xyz) {
+	xyz *= NoiseScale;
+	float4 p1 = float4(xyz, Time) + Psi1;
+	float4 p2 = float4(xyz, Time) + Psi2;
+	float4 p3 = float4(xyz, Time) + Psi3;
+
+	float dp1dy = (Noise(p1 + Dy) - Noise(p1 - Dy)) * InvDx;
+	float dp1dz = (Noise(p1 + Dz) - Noise(p1 - Dz)) * InvDx;
+	float dp2dz = (Noise(p2 + Dz) - Noise(p2 - Dz)) * InvDx;
+	float dp2dx = (Noise(p2 + Dx) - Noise(p2 - Dx)) * InvDx;
+	float dp3dx = (Noise(p3 + Dx) - Noise(p3 - Dx)) * InvDx;
+	float dp3dy = (Noise(p3 + Dy) - Noise(p3 - Dy)) * InvDx;
+	
+	return float3(dp3dy - dp2dz, dp1dz - dp3dx, dp2dx - dp1dy);
 }
 
 [numthreads(WIDTH,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID) {
-	float2 xy = PosIn[id.x];
-	xy += Speed * Curl(xy) * Dt;
-    PosOut[id.x] = xy;
+	float3 xyz = PosIn[id.x];
+	xyz += Speed * Curl(xyz) * Dt;
+    PosOut[id.x] = xyz;
 }

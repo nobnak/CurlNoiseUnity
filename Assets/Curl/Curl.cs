@@ -10,21 +10,21 @@ public class Curl : MonoBehaviour {
 	public const string SHADER_POS_OUT = "PosOut";
 	public const string SHADER_TIME = "Time";
 	public const string SHADER_DT = "Dt";
-	public const string SHADER_DX = "Dx";
-	public const string SHADER_SCALE = "Scale";
+	public const string SHADER_NOISE_SCALE = "NoiseScale";
 	public const string SHADER_SPEED = "Speed";
 	public const string SHADER_ID = "Id";
 	public const string SHADER_L = "L";
 
 	public int nGroups = 1;
-	public float Speed = 1;
-	public float TimeScale = 1;
-	public Vector4 L = new Vector4(10f, 10f, 10f, 0f);
+	public float speed = 1;
+	public float timeScale = 1;
+	public float noiseScale = 0.1f;
+	public Vector4 l = new Vector4(10f, 10f, 10f, 0f);
 	public ComputeShader curl;
 	public GameObject particleFab;
 
 	private int _nThreads = -1;
-	private Vector2[] _poses;
+	private Vector3[] _poses;
 	private ComputeBuffer _posBuf0, _posBuf1;
 	private GameObject[] _particles;
 	private GameObject _parent;
@@ -37,8 +37,9 @@ public class Curl : MonoBehaviour {
 		var dt = Time.deltaTime;
 
 		curl.SetFloat(SHADER_DT, dt);
-		curl.SetFloat(SHADER_SPEED, Speed);
-		curl.SetFloat(SHADER_TIME, time * TimeScale);
+		curl.SetFloat(SHADER_SPEED, speed);
+		curl.SetFloat(SHADER_TIME, time * timeScale);
+		curl.SetFloat(SHADER_NOISE_SCALE, noiseScale);
 		curl.SetBuffer(KERNEL, SHADER_POS_IN, _posBuf0);
 		curl.SetBuffer(KERNEL, SHADER_POS_OUT, _posBuf1);
 		curl.Dispatch(KERNEL, nGroups, 1, 1);
@@ -55,12 +56,12 @@ public class Curl : MonoBehaviour {
 
 		Release();
 
-		_poses = new Vector2[_nThreads];
+		_poses = new Vector3[_nThreads];
 		_posBuf0 = new ComputeBuffer(_poses.Length, Marshal.SizeOf(_poses[0]));
 		_posBuf1 = new ComputeBuffer(_poses.Length, Marshal.SizeOf(_poses[0]));
 
 		for (var i = 0; i < _nThreads; i++)
-			_poses[i] = new Vector2(L.x * Random.value, L.y * Random.value);
+			_poses[i] = new Vector3(l.x * Random.value, l.y * Random.value, l.z * Random.value);
 		_posBuf0.SetData(_poses);
 		_posBuf1.SetData(_poses);
 

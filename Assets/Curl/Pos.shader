@@ -15,7 +15,7 @@
 
 			float4 _Color;
 			int Id;
-			StructuredBuffer<float2> PosIn;			
+			StructuredBuffer<float3> PosIn;
 
 			struct Input {
 				float4 vertex : POSITION;
@@ -27,12 +27,12 @@
 			};
 			
 			vs2ps vert(Input IN) {
-				float2 center = PosIn[Id];
+				float3 center = PosIn[Id];
 				float4 posWorld = mul(_Object2World, IN.vertex);
-				posWorld.xy += center;
+				posWorld.xyz += center;
 			
 				vs2ps OUT;
-				OUT.vertex = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, posWorld));
+				OUT.vertex = mul(UNITY_MATRIX_VP, posWorld);
 				OUT.uv = IN.uv;
 				return OUT;
 			}
