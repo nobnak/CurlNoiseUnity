@@ -44,8 +44,10 @@ public class Curl : MonoBehaviour {
 		curl.SetFloat(SHADER_SPEED, speed);
 		curl.SetFloat(SHADER_TIME, time * timeScale);
 		curl.SetFloat(SHADER_NOISE_SCALE, noiseScale);
-		if (Spheres.Length > 0)
+		if (Spheres.Length > 0) {
+			UpdateSphereBuf();
 			curl.SetBuffer(KERNEL, SHADER_BUF_SPHERE, _sphereBuf);
+		}
 		curl.SetBuffer(KERNEL, SHADER_BUF_POS_IN, _posBuf0);
 		curl.SetBuffer(KERNEL, SHADER_BUF_POS_OUT, _posBuf1);
 		curl.Dispatch(KERNEL, nGroups, 1, 1);
@@ -83,15 +85,18 @@ public class Curl : MonoBehaviour {
 			if (Spheres.Length > 0) {
 				_spheres = new Vector4[Spheres.Length];
 				_sphereBuf = new ComputeBuffer(_spheres.Length, Marshal.SizeOf(typeof(Vector4)));
-				for (var i = 0; i < Spheres.Length; i++) {
-					var s = Spheres[i];
-					var p = s.position;
-					_spheres[i] = new Vector4(p.x, p.y, p.z, s.localScale.x);
-				}
-				_sphereBuf.SetData(_spheres);
 			}
 		}
 	}
+	void UpdateSphereBuf() {
+		for (var i = 0; i < Spheres.Length; i++) {
+			var s = Spheres[i];
+			var p = s.position;
+			_spheres [i] = new Vector4(p.x, p.y, p.z, 0.5f * s.localScale.x);
+		}
+		_sphereBuf.SetData(_spheres);
+	}
+
 	void Release() {
 		ReleasePosBufs();
 		ReleaseSphereBufs();

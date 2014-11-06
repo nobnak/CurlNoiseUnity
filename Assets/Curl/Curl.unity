@@ -216,7 +216,7 @@ MonoBehaviour:
   nGroups: 150
   speed: 20
   timeScale: .00999999978
-  noiseScale: .00999999978
+  noiseScale: .0500000007
   l: {x: 20, y: 20, z: 20, w: 0}
   curl: {fileID: 7200000, guid: 78222b94dae85054ca895f16e3d6ff63, type: 3}
   particleFab: {fileID: 100000, guid: 9b9349ac85f32624081c1e5260519baa, type: 2}
@@ -287,8 +287,8 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1032887347}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -47.5247421, y: .457653046, z: 0}
-  m_LocalScale: {x: 20, y: 20, z: 20}
+  m_LocalPosition: {x: -93.4144135, y: 7.82869339, z: 0}
+  m_LocalScale: {x: 100, y: 100, z: 100}
   m_Children: []
   m_Father: {fileID: 1700845845}
   m_RootOrder: 1
@@ -432,7 +432,7 @@ Light:
   serializedVersion: 3
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: .5
+  m_Intensity: .379999995
   m_Range: 10
   m_SpotAngle: 30
   m_CookieSize: 10

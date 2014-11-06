@@ -33,13 +33,13 @@ float Ramp(float r) {
 }
 float Dist2Sphere(float3 xyz, float4 sphere) {
 	float3 v = xyz - sphere.xyz;
-	return length(v) - sphere.z;
+	return length(v) - sphere.w;
 }
 float3 ClosestOnSphere(float3 xyz, float4 sphere, out float dist, out float3 n) {
 	float3 v = xyz - sphere.xyz;
-	dist = length(v) - sphere.z;
+	dist = length(v) - sphere.w;
 	n = normalize(v);
-	return sphere.z * n;
+	return sphere.w * n + sphere.xyz;
 }
 float Pot(float4 x, float4 noiseOffset) {
 	float4 x_s = x * float4(NoiseScale, NoiseScale, NoiseScale, 1.0) + noiseOffset;
@@ -49,7 +49,7 @@ float Pot(float4 x, float4 noiseOffset) {
 	Spheres.GetDimensions(nSpheres, stride);
 	
 	float r = 1.0;
-	#ifdef RAMP
+	#if 0
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
 		float dist = Dist2Sphere(x.xyz, sph);
@@ -78,7 +78,7 @@ float3 Constraint(float3 x) {
 		float4 sph = Spheres[i];
 		float dist = 0.0;
 		float3 n = 0.0;
-		float3 closest = ClosestOnSphere(x.xyz, sph, dist, n);
+		float3 closest = ClosestOnSphere(x, sph, dist, n);
 		if (dist < 0.0)
 			x = closest;
 	}
