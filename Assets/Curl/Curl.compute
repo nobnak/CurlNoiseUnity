@@ -7,7 +7,6 @@
 static const float4 Dx = float4(EPSILON, 0, 0, 0);
 static const float4 Dy = float4(0, EPSILON, 0, 0);
 static const float4 Dz = float4(0, 0, EPSILON, 0);
-static const float InvDx = 1.0 / (2.0 * EPSILON);
 static const float4 Psi1 = float4(10, 0, 0, 0);
 static const float4 Psi2 = float4(0, 10, 0, 0);
 static const float4 Psi3 = float4(0, 0, 10, 0);
@@ -15,34 +14,83 @@ static const float4 Psi3 = float4(0, 0, 10, 0);
 float Dt;
 float Time;
 float Speed;
-float NoiseScale = 0.1;
+float NoiseScale;
+StructuredBuffer<float4> Spheres;
 StructuredBuffer<float3> PosIn;
 RWStructuredBuffer<float3> PosOut;
 
 
 
-float Pot(float4 xyzt) {
-	return snoise(xyzt);
-}
-float3 Curl(float3 xyz) {
-	xyz *= NoiseScale;
-	float4 p1 = float4(xyz, Time) + Psi1;
-	float4 p2 = float4(xyz, Time) + Psi2;
-	float4 p3 = float4(xyz, Time) + Psi3;
-
-	float dp1dy = (Pot(p1 + Dy) - Pot(p1 - Dy)) * InvDx;
-	float dp1dz = (Pot(p1 + Dz) - Pot(p1 - Dz)) * InvDx;
-	float dp2dz = (Pot(p2 + Dz) - Pot(p2 - Dz)) * InvDx;
-	float dp2dx = (Pot(p2 + Dx) - Pot(p2 - Dx)) * InvDx;
-	float dp3dx = (Pot(p3 + Dx) - Pot(p3 - Dx)) * InvDx;
-	float dp3dy = (Pot(p3 + Dy) - Pot(p3 - Dy)) * InvDx;
+float Ramp(float r) {
+	if (r >= 1.0)
+		return 1.0;
+	else if (r <= -1.0)
+		return -1.0;
 	
-	return float3(dp3dy - dp2dz, dp1dz - dp3dx, dp2dx - dp1dy);
+	float r3 = r * r * r;
+	float r5 = r3 * r * r;
+	return (15.0 * r - 10.0 * r3 + 3.0 * r5) * 0.125;
 }
+float Dist2Sphere(float3 xyz, float4 sphere) {
+	float3 v = xyz - sphere.xyz;
+	return length(v) - sphere.z;
+}
+float3 ClosestOnSphere(float3 xyz, float4 sphere, out float dist, out float3 n) {
+	float3 v = xyz - sphere.xyz;
+	dist = length(v) - sphere.z;
+	n = normalize(v);
+	return sphere.z * n;
+}
+float Pot(float4 x, float4 noiseOffset) {
+	float4 x_s = x * float4(NoiseScale, NoiseScale, NoiseScale, 1.0) + noiseOffset;
+	
+	uint nSpheres = 0;
+	uint stride = 0;
+	Spheres.GetDimensions(nSpheres, stride);
+	
+	float r = 1.0;
+	#ifdef RAMP
+	for (uint i = 0; i < nSpheres; i++) {
+		float4 sph = Spheres[i];
+		float dist = Dist2Sphere(x.xyz, sph);
+		r *= Ramp(dist * NoiseScale);
+	}
+	#endif
+	return r * snoise(x_s);
+}
+float3 Curl(float3 x) {
+	float4 xt = float4(x, Time);
+	float dp1dy = (Pot(xt + Dy, Psi1) - Pot(xt - Dy, Psi1));
+	float dp1dz = (Pot(xt + Dz, Psi1) - Pot(xt - Dz, Psi1));
+	float dp2dz = (Pot(xt + Dz, Psi2) - Pot(xt - Dz, Psi2));
+	float dp2dx = (Pot(xt + Dx, Psi2) - Pot(xt - Dx, Psi2));
+	float dp3dx = (Pot(xt + Dx, Psi3) - Pot(xt - Dx, Psi3));
+	float dp3dy = (Pot(xt + Dy, Psi3) - Pot(xt - Dy, Psi3));
+
+	return float3(dp3dy - dp2dz, dp1dz - dp3dx, dp2dx - dp1dy) / (2.0 * EPSILON * NoiseScale);
+}
+float3 Constraint(float3 x) {
+	uint nSpheres = 0;
+	uint stride = 0;
+	Spheres.GetDimensions(nSpheres, stride);
+	
+	for (uint i = 0; i < nSpheres; i++) {
+		float4 sph = Spheres[i];
+		float dist = 0.0;
+		float3 n = 0.0;
+		float3 closest = ClosestOnSphere(x.xyz, sph, dist, n);
+		if (dist < 0.0)
+			x = closest;
+	}
+	return x;
+}
+
+
 
 [numthreads(WIDTH,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID) {
 	float3 xyz = PosIn[id.x];
 	xyz += Speed * Curl(xyz) * Dt;
+	xyz = Constraint(xyz);
     PosOut[id.x] = xyz;
 }
