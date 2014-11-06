@@ -70,6 +70,8 @@ public class Curl : MonoBehaviour {
 			_posBuf0.SetData(_poses);
 			_posBuf1.SetData(_poses);
 
+			var mf = particleFab.GetComponent<MeshFilter>();
+			mf.sharedMesh.bounds = new Bounds(Vector3.zero, 1000f * Vector3.one);
 			_parent = new GameObject("Root Particle");
 			_particles = new GameObject[_nThreads];
 			for (var i = 0;  i < _nThreads; i++) {

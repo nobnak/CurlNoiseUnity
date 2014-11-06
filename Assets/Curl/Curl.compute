@@ -49,13 +49,11 @@ float Pot(float4 x, float4 noiseOffset) {
 	Spheres.GetDimensions(nSpheres, stride);
 	
 	float r = 1.0;
-	#if 0
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
 		float dist = Dist2Sphere(x.xyz, sph);
 		r *= Ramp(dist * NoiseScale);
 	}
-	#endif
 	return r * snoise(x_s);
 }
 float3 Curl(float3 x) {

@@ -3,8 +3,9 @@
 		_Color ("Color", Color) = (1, 1, 1, 1)
 	}
 	SubShader {
-		Tags { "RenderType"="Opaque" }
-		LOD 200
+		Tags { "RenderType"="Transparent" "Queue"="Transparent" }
+		LOD 200 ZWrite Off ZTest Always Fog { Mode Off }
+		Blend SrcAlpha One
 		
 		Pass {
 			CGPROGRAM
@@ -32,7 +33,7 @@
 				posWorld.xyz += center;
 			
 				vs2ps OUT;
-				OUT.vertex = mul(UNITY_MATRIX_VP, posWorld);
+				OUT.vertex = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, posWorld));
 				OUT.uv = IN.uv;
 				return OUT;
 			}
