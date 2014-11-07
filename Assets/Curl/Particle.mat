@@ -6,7 +6,7 @@ Material:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_Name: Pos
+  m_Name: Particle
   m_Shader: {fileID: 4800000, guid: ff3ec26c2797b83489296c7c097a1230, type: 3}
   m_ShaderKeywords: []
   m_CustomRenderQueue: -1

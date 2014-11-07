@@ -1,4 +1,4 @@
-﻿Shader "Custom/Pos" {
+﻿Shader "Custom/Particle" {
 	Properties {
 		_Color ("Color", Color) = (1, 1, 1, 1)
 	}
@@ -14,9 +14,15 @@
 			#pragma fragment frag
 			#include "UnityCG.cginc"
 
+			struct Particle {
+				float3 x;
+				float t;
+				float life;
+			};
+
 			float4 _Color;
 			int Id;
-			StructuredBuffer<float3> PosIn;
+			StructuredBuffer<Particle> ParticleIn;
 
 			struct Input {
 				float4 vertex : POSITION;
@@ -28,9 +34,9 @@
 			};
 			
 			vs2ps vert(Input IN) {
-				float3 center = PosIn[Id];
+				Particle p = ParticleIn[Id];
 				float4 posWorld = mul(_Object2World, IN.vertex);
-				posWorld.xyz += center;
+				posWorld.xyz += p.x;
 			
 				vs2ps OUT;
 				OUT.vertex = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, posWorld));

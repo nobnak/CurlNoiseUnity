@@ -1,4 +1,5 @@
-#pragma kernel CSMain
+#pragma kernel Simulate
+#pragma kernel Emit
 #include "SNoise.hlsl"
 #define WIDTH 64
 #define EPSILON 1e-3
@@ -10,14 +11,24 @@ static const float4 Dz = float4(0, 0, EPSILON, 0);
 static const float4 Psi1 = float4(10, 0, 0, 0);
 static const float4 Psi2 = float4(0, 10, 0, 0);
 static const float4 Psi3 = float4(0, 0, 10, 0);
+static const float4 DeathPos = float4(1000, 1000, 0, 0);
+
+struct Particle {
+	float3 x;
+	float t;
+	float life;
+};
 
 float Dt;
 float Time;
 float Speed;
 float NoiseScale;
 StructuredBuffer<float4> Spheres;
-StructuredBuffer<float3> PosIn;
-RWStructuredBuffer<float3> PosOut;
+StructuredBuffer<Particle> ParticleIn;
+RWStructuredBuffer<Particle> ParticleOut;
+
+StructuredBuffer<int> EmitIndices;
+StructuredBuffer<Particle> EmitParticles;
 
 
 
@@ -80,15 +91,27 @@ float3 Constraint(float3 x) {
 		if (dist < 0.0)
 			x = closest;
 	}
+	
 	return x;
 }
 
 
 
 [numthreads(WIDTH,1,1)]
-void CSMain (uint3 id : SV_DispatchThreadID) {
-	float3 xyz = PosIn[id.x];
-	xyz += Speed * Curl(xyz) * Dt;
-	xyz = Constraint(xyz);
-    PosOut[id.x] = xyz;
+void Simulate(uint3 id : SV_DispatchThreadID) {
+	Particle p = ParticleIn[id.x];
+	if (p.t < p.life) {
+		p.t += Dt;
+		p.x += Speed * Curl(p.x) * Dt;
+		p.x = Constraint(p.x);
+	} else {
+		p.x = DeathPos.xyz;
+	}
+    ParticleOut[id.x] = p;
+}
+[numthreads(WIDTH,1,1)]
+void Emit(uint3 id : SV_DispatchThreadID) {
+	int i = EmitIndices[id.x];
+	if (i >= 0)
+		ParticleOut[i] = EmitParticles[id.x];
 }
