@@ -3,9 +3,8 @@
 		_Color ("Color", Color) = (1, 1, 1, 1)
 	}
 	SubShader {
-		Tags { "RenderType"="Transparent" "Queue"="Transparent" }
-		LOD 200 ZWrite Off ZTest Always Fog { Mode Off }
-		Blend SrcAlpha One
+		Tags { "RenderType"="Opaque" }
+		LOD 200
 		
 		Pass {
 			CGPROGRAM
@@ -15,18 +14,18 @@
 			#include "UnityCG.cginc"
 
 			struct Particle {
-				float3 x;
+				float2 x;
 				float t;
 				float life;
 			};
 
 			float4 _Color;
-			int Id;
 			StructuredBuffer<Particle> ParticleIn;
 
 			struct Input {
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
+				float2 uv2 : TEXCOORD1;
 			};
 			struct vs2ps {
 				float4 vertex : POSITION;
@@ -34,9 +33,10 @@
 			};
 			
 			vs2ps vert(Input IN) {
-				Particle p = ParticleIn[Id];
+				int id = int(IN.uv2.x);
+				Particle p = ParticleIn[id];
 				float4 posWorld = mul(_Object2World, IN.vertex);
-				posWorld.xyz += p.x;
+				posWorld.xy += p.x;
 			
 				vs2ps OUT;
 				OUT.vertex = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, posWorld));

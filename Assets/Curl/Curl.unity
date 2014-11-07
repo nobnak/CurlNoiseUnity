@@ -98,7 +98,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 67909531}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 38.4674301, y: 44.6522217, z: 0}
+  m_LocalPosition: {x: 8.5882473, y: -73.3895874, z: 0}
   m_LocalScale: {x: 50, y: 50, z: 50}
   m_Children: []
   m_Father: {fileID: 1700845845}
@@ -181,7 +181,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 572541177}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 38.4156456, y: -20.2769299, z: 0}
+  m_LocalPosition: {x: -59.3362389, y: 48.405899, z: 0}
   m_LocalScale: {x: 50, y: 50, z: 50}
   m_Children: []
   m_Father: {fileID: 1700845845}
@@ -213,10 +213,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab1dc437f8593ff409ceb646d368e256, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nGroups: 150
+  nGroups: 160
   nGroupsOfEmit: 1
   speed: 20
-  timeScale: .00999999978
+  timeScale: .100000001
   noiseScale: .0199999996
   curl: {fileID: 7200000, guid: 78222b94dae85054ca895f16e3d6ff63, type: 3}
   particleFab: {fileID: 100000, guid: 9b9349ac85f32624081c1e5260519baa, type: 2}
@@ -288,7 +288,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1032887347}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -47.3423271, y: 7.76844788, z: 0}
+  m_LocalPosition: {x: 80.4161072, y: 32.0103493, z: 0}
   m_LocalScale: {x: 50, y: 50, z: 50}
   m_Children: []
   m_Father: {fileID: 1700845845}
@@ -499,7 +499,7 @@ Renderer:
   m_LightmapIndex: 255
   m_LightmapTilingOffset: {x: 1, y: 1, z: 0, w: 0}
   m_Materials:
-  - {fileID: 10302, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: a9f38b2e0b45fd942a285a4912884884, type: 2}
   m_SubsetIndices: 
   m_StaticBatchRoot: {fileID: 0}
   m_UseLightProbes: 0
@@ -522,7 +522,7 @@ Transform:
   m_GameObject: {fileID: 2013751528}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 5, y: 5, z: 5}
+  m_LocalScale: {x: 50, y: 50, z: 50}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 4

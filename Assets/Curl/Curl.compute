@@ -7,14 +7,10 @@
 
 static const float4 Dx = float4(EPSILON, 0, 0, 0);
 static const float4 Dy = float4(0, EPSILON, 0, 0);
-static const float4 Dz = float4(0, 0, EPSILON, 0);
-static const float4 Psi1 = float4(10, 0, 0, 0);
-static const float4 Psi2 = float4(0, 10, 0, 0);
-static const float4 Psi3 = float4(0, 0, 10, 0);
-static const float4 DeathPos = float4(1000, 1000, 0, 0);
+static const float4 DeathPos = float4(1000, 0, 0, 0);
 
 struct Particle {
-	float3 x;
+	float2 x;
 	float t;
 	float life;
 };
@@ -42,18 +38,18 @@ float Ramp(float r) {
 	float r5 = r3 * r * r;
 	return (15.0 * r - 10.0 * r3 + 3.0 * r5) * 0.125;
 }
-float Dist2Sphere(float3 xyz, float4 sphere) {
-	float3 v = xyz - sphere.xyz;
+float Dist2Sphere(float2 x, float4 sphere) {
+	float2 v = x - sphere.xy;
 	return length(v) - sphere.w;
 }
-float3 ClosestOnSphere(float3 xyz, float4 sphere, out float dist, out float3 n) {
-	float3 v = xyz - sphere.xyz;
+float2 ClosestOnSphere(float2 x, float4 sphere, out float dist, out float2 n) {
+	float2 v = x - sphere.xy;
 	dist = length(v) - sphere.w;
 	n = normalize(v);
-	return sphere.w * n + sphere.xyz;
+	return sphere.w * n + sphere.xy;
 }
-float Pot(float4 x, float4 noiseOffset) {
-	float4 x_s = x * float4(NoiseScale, NoiseScale, NoiseScale, 1.0) + noiseOffset;
+float Pot(float3 xt) {
+	float3 xt_s = xt * float3(NoiseScale, NoiseScale, 1.0);
 	
 	uint nSpheres = 0;
 	uint stride = 0;
@@ -62,23 +58,19 @@ float Pot(float4 x, float4 noiseOffset) {
 	float r = 1.0;
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
-		float dist = Dist2Sphere(x.xyz, sph);
+		float dist = Dist2Sphere(xt.xy, sph);
 		r *= Ramp(dist * NoiseScale);
 	}
-	return r * snoise(x_s);
+	return r * snoise(xt_s);
 }
-float3 Curl(float3 x) {
-	float4 xt = float4(x, Time);
-	float dp1dy = (Pot(xt + Dy, Psi1) - Pot(xt - Dy, Psi1));
-	float dp1dz = (Pot(xt + Dz, Psi1) - Pot(xt - Dz, Psi1));
-	float dp2dz = (Pot(xt + Dz, Psi2) - Pot(xt - Dz, Psi2));
-	float dp2dx = (Pot(xt + Dx, Psi2) - Pot(xt - Dx, Psi2));
-	float dp3dx = (Pot(xt + Dx, Psi3) - Pot(xt - Dx, Psi3));
-	float dp3dy = (Pot(xt + Dy, Psi3) - Pot(xt - Dy, Psi3));
+float2 Curl(float2 x) {
+	float3 xt = float3(x, Time);
+	float dpdx = Pot(xt + Dx.xyw) - Pot(xt - Dx.xyw);
+	float dpdy = Pot(xt + Dy.xyw) - Pot(xt - Dy.xyw);
 
-	return float3(dp3dy - dp2dz, dp1dz - dp3dx, dp2dx - dp1dy) / (2.0 * EPSILON * NoiseScale);
+	return float2(dpdy, -dpdx) / (2.0 * EPSILON * NoiseScale);
 }
-float3 Constraint(float3 x) {
+float2 Constraint(float2 x) {
 	uint nSpheres = 0;
 	uint stride = 0;
 	Spheres.GetDimensions(nSpheres, stride);
@@ -86,8 +78,8 @@ float3 Constraint(float3 x) {
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
 		float dist = 0.0;
-		float3 n = 0.0;
-		float3 closest = ClosestOnSphere(x, sph, dist, n);
+		float2 n = 0.0;
+		float2 closest = ClosestOnSphere(x, sph, dist, n);
 		if (dist < 0.0)
 			x = closest;
 	}
@@ -105,7 +97,7 @@ void Simulate(uint3 id : SV_DispatchThreadID) {
 		p.x += Speed * Curl(p.x) * Dt;
 		p.x = Constraint(p.x);
 	} else {
-		p.x = DeathPos.xyz;
+		p.x = DeathPos.xy;
 	}
     ParticleOut[id.x] = p;
 }

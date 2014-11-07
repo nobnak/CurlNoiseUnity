@@ -118,7 +118,7 @@ public class Curl : MonoBehaviour {
 			_particleBuf1 = new ComputeBuffer(_particles.Length, Marshal.SizeOf(_particles[0]));
 			
 			for (var i = 0; i < _nThreadsOfSimulation; i++)
-				_particles[i] = Particle.Init; //new Particle(new Vector3(10f * RandomCenter(), 10f * RandomCenter(), 10f * RandomCenter()), 0f, 30f);
+				_particles[i] = Particle.Init;
 			_particleBuf0.SetData(_particles);
 			_particleBuf1.SetData(_particles);
 
@@ -127,9 +127,13 @@ public class Curl : MonoBehaviour {
 			for (var i = 0;  i < _nThreadsOfSimulation; i++) {
 				var go = _particleGOs[i] = (GameObject)Instantiate(particleFab, Vector3.zero, Quaternion.identity);
 				go.name = "Particle";
+				go.isStatic = true;
 				go.transform.parent = _parent.transform;
-				var mat = go.renderer.material;
-				mat.SetInt(SHADER_ID, i);
+				var mesh = go.GetComponent<MeshFilter>().mesh;
+				var uv2 = new Vector2[mesh.vertexCount];
+				for (var j = 0; j < uv2.Length; j++)
+					uv2[j].x = i + 0.1f;
+				mesh.uv2 = uv2;
 			}
 		}
 		if (_spheres == null || _spheres.Length != spheres.Length) {
@@ -180,23 +184,23 @@ public class Curl : MonoBehaviour {
 	void Swap() {
 		var tmpPos = _particleBuf0; _particleBuf0 = _particleBuf1; _particleBuf1 = tmpPos;
 	}
-	Vector3 RandomInEmitter() {
+	Vector2 RandomInEmitter() {
 		var es = emitter.localScale;
-		return emitter.position + new Vector3(es.x * RandomCenter(), es.y * RandomCenter(), es.z * RandomCenter());
+		return (Vector2)emitter.position + new Vector2(es.x * RandomCenter(), es.y * RandomCenter());
 	}
 	float RandomCenter() { return Random.Range(-0.5f, 0.5f); }
 
 	[StructLayout(LayoutKind.Sequential)]
 	public struct Particle {
-		public Vector3 x;
+		public Vector2 x;
 		public float t;
 		public float life;
 
-		public Particle(Vector3 x, float t, float life) {
+		public Particle(Vector2 x, float t, float life) {
 			this.x = x;
 			this.t = t;
 			this.life = life;
 		}
-		public static readonly Particle Init = new Particle(Vector3.zero, 0f, 0f);
+		public static readonly Particle Init = new Particle(Vector2.zero, 0f, 0f);
 	}
 }
