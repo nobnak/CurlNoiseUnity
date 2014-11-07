@@ -214,7 +214,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   nGroups: 160
-  nGroupsOfEmit: 1
+  nGroupsOfEmit: 2
+  nEmitsPerSec: 200
   speed: 20
   timeScale: .100000001
   noiseScale: .0199999996

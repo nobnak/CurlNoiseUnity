@@ -20,6 +20,7 @@ public class Curl : MonoBehaviour {
 
 	public int nGroups = 1;
 	public int nGroupsOfEmit = 1;
+	public int nEmitsPerSec = 500;
 	public float speed = 1;
 	public float timeScale = 1;
 	public float noiseScale = 0.1f;
@@ -29,6 +30,7 @@ public class Curl : MonoBehaviour {
 	public Transform emitter;
 
 	private int _nThreadsOfSimulation = -1;
+	private TickKeeper _emitKeeper;
 	private Particle[] _particles;
 	private ComputeBuffer _particleBuf0, _particleBuf1;
 	private Vector4[] _spheres;
@@ -80,7 +82,9 @@ public class Curl : MonoBehaviour {
 		}
 	}
 	void UpdateEmitter() {
-		var nReqEmit = 10;
+		_emitKeeper.Fps = nEmitsPerSec;
+		var nReqEmit = _emitKeeper.Count();
+		nReqEmit = (nReqEmit < _emitIndices.Length ? nReqEmit : _emitIndices.Length);
 		var nCurrEmit = 0;
 		for (var i = 0; i < _particles.Length && nCurrEmit < nReqEmit; i++) {
 			var p = _particles[i];
@@ -127,7 +131,6 @@ public class Curl : MonoBehaviour {
 			for (var i = 0;  i < _nThreadsOfSimulation; i++) {
 				var go = _particleGOs[i] = (GameObject)Instantiate(particleFab, Vector3.zero, Quaternion.identity);
 				go.name = "Particle";
-				go.isStatic = true;
 				go.transform.parent = _parent.transform;
 				var mesh = go.GetComponent<MeshFilter>().mesh;
 				var uv2 = new Vector2[mesh.vertexCount];
@@ -146,6 +149,7 @@ public class Curl : MonoBehaviour {
 		if (_emitParticles == null) {
 			ReleaseEmitBufs();
 			_nPrevEmit = -1;
+			_emitKeeper = new TickKeeper(nEmitsPerSec);
 			_emitIndices = new int[nGroupsOfEmit * N_THREADS_IN_GROUP];
 			for (var i = 0; i < _emitIndices.Length; i++)
 				_emitIndices[i] = -1;
