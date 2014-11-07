@@ -80,7 +80,7 @@ public class Curl : MonoBehaviour {
 		}
 	}
 	void UpdateEmitter() {
-		var nReqEmit = 1;
+		var nReqEmit = 10;
 		var nCurrEmit = 0;
 		for (var i = 0; i < _particles.Length && nCurrEmit < nReqEmit; i++) {
 			var p = _particles[i];
