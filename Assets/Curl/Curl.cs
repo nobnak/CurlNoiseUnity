@@ -4,195 +4,158 @@ using System.Runtime.InteropServices;
 
 public class Curl : MonoBehaviour {
 
-	public const int N_THREADS_IN_GROUP = 64;
+	public const int THREAD_WIDTH = 8;
+	public const int THREAD_N = THREAD_WIDTH * THREAD_WIDTH;
+	public const int TEX_WIDTH = 512;
 	public const int KERNEL_SIMULATE = 0;
 	public const int KERNEL_EMIT = 1;
-	public const string SHADER_BUF_PARTICLE_IN = "ParticleIn";
-	public const string SHADER_BUF_PARTICLE_OUT = "ParticleOut";
-	public const string SHADER_BUF_SPHERE = "Spheres";
-	public const string SHADER_BUF_EMIT_INDEX = "EmitIndices";
-	public const string SHADER_BUF_EMIT_PARTICLE = "EmitParticles";
+	public const int KERNEL_PRECOMPUTE = 2;
+	public const string SHADER_POT_TEX_IN = "PotTexIn";
+	public const string SHADER_POT_TEX_OUT = "PotTexOut";
+	public const string SHADER_PIX_2_NOISE = "Pix2Noise";
+	public const string SHADER_GEO_2_NOISE = "Geo2Noise";
+	public const string SHADER_GEO_2_UV = "Geo2UV";
 	public const string SHADER_TIME = "Time";
-	public const string SHADER_DT = "Dt";
-	public const string SHADER_NOISE_SCALE = "NoiseScale";
 	public const string SHADER_SPEED = "Speed";
-	public const string SHADER_ID = "Id";
+	public const string SHADER_DT = "Dt";
+	public const string SHADER_GEO_SIZE = "GeoSize";
+	public const string SHADER_PARTICLE_BUF_IN = "ParticleIn";
+	public const string SHADER_PARTICLE_BUF_OUT = "ParticleOut";
 
-	public int nGroups = 1;
-	public int nGroupsOfEmit = 1;
-	public int nEmitsPerSec = 500;
-	public float speed = 1;
-	public float timeScale = 1;
+	public int nParticleGroup = 100;
+	public Vector2 size = new Vector2(100f, 100f);
+	public float particleSpeed = 10f;
+	public float timeScale = 0.1f;
 	public float noiseScale = 0.1f;
 	public ComputeShader curl;
+	public Material debugMat;
 	public GameObject particleFab;
-	public Transform[] spheres;
-	public Transform emitter;
 
-	private int _nThreadsOfSimulation = -1;
-	private TickKeeper _emitKeeper;
+	private Vector4 _noiseSize;
+	private RenderTexture _potTex;
+	private Mesh _debugMesh;
+
+	private GameObject[] _particleGOs;
 	private Particle[] _particles;
 	private ComputeBuffer _particleBuf0, _particleBuf1;
-	private Vector4[] _spheres;
-	private ComputeBuffer _sphereBuf;
-	private GameObject[] _particleGOs;
-	private GameObject _parent;
-	private int _nPrevEmit = 0;
-	private int[] _emitIndices;
-	private ComputeBuffer _emitIndexBuf;
-	private Particle[] _emitParticles;
-	private ComputeBuffer _emitParticleBuf;
 
-	void OnDestroy() { Release(); }
-	void Update () {
+	void Start() {
+		CheckInit();
+		UpdatePotential();
+	}
+	void Update() {
 		CheckInit();
 
-		var time = Time.timeSinceLevelLoad;
-		var dt = Time.deltaTime;
+		UpdatePotential();
+		UpdateParticle();
 
-		UpdateEmitter();
-		curl.SetBuffer(KERNEL_EMIT, SHADER_BUF_EMIT_INDEX, _emitIndexBuf);
-		curl.SetBuffer(KERNEL_EMIT, SHADER_BUF_EMIT_PARTICLE, _emitParticleBuf);
-		curl.SetBuffer(KERNEL_EMIT, SHADER_BUF_PARTICLE_OUT, _particleBuf0);
-		curl.Dispatch(KERNEL_EMIT, nGroupsOfEmit, 1, 1);
-
-		UpdateParticles(dt);
-		curl.SetFloat(SHADER_DT, dt);
-		curl.SetFloat(SHADER_SPEED, speed);
-		curl.SetFloat(SHADER_TIME, time * timeScale);
-		curl.SetFloat(SHADER_NOISE_SCALE, noiseScale);
-		if (spheres.Length > 0) {
-			UpdateSphereBuf();
-			curl.SetBuffer(KERNEL_SIMULATE, SHADER_BUF_SPHERE, _sphereBuf);
-		}
-		curl.SetBuffer(KERNEL_SIMULATE, SHADER_BUF_PARTICLE_IN, _particleBuf0);
-		curl.SetBuffer(KERNEL_SIMULATE, SHADER_BUF_PARTICLE_OUT, _particleBuf1);
-		curl.Dispatch(KERNEL_SIMULATE, nGroups, 1, 1);
-		Swap();
-
-		Shader.SetGlobalFloat(SHADER_DT, dt);
-		Shader.SetGlobalBuffer(SHADER_BUF_PARTICLE_IN, _particleBuf0);
-	}
-	void UpdateParticles(float dt) {
-		for (var i = 0; i < _particles.Length; i++) {
-			var p = _particles[i];
-			if (p.t < p.life)
-				p.t += dt;
-			_particles[i] = p;
-		}
-	}
-	void UpdateEmitter() {
-		_emitKeeper.Fps = nEmitsPerSec;
-		var nReqEmit = _emitKeeper.Count();
-		nReqEmit = (nReqEmit < _emitIndices.Length ? nReqEmit : _emitIndices.Length);
-		var nCurrEmit = 0;
-		for (var i = 0; i < _particles.Length && nCurrEmit < nReqEmit; i++) {
-			var p = _particles[i];
-			if (p.life <= p.t) {
-				var pEmit = new Particle(RandomInEmitter(), 0f, 30f);
-				_emitIndices[nCurrEmit] = i;
-				_emitParticles[nCurrEmit] = _particles[i] = pEmit;
-				nCurrEmit++;
-			}
-		}
-		if (nCurrEmit < _nPrevEmit)
-			for (var i = nCurrEmit; i < _emitIndices.Length && i <= _nPrevEmit; i++)
-				_emitIndices[i] = -1;
-		if (nCurrEmit > 0 || nCurrEmit != _nPrevEmit) {
-			_nPrevEmit = nCurrEmit;
-			_emitIndexBuf.SetData(_emitIndices);
-			_emitParticleBuf.SetData(_emitParticles);
-		}
-	}
-	void UpdateSphereBuf() {
-		for (var i = 0; i < spheres.Length; i++) {
-			var s = spheres[i];
-			var p = s.position;
-			_spheres [i] = new Vector4(p.x, p.y, p.z, 0.5f * s.localScale.x);
-		}
-		_sphereBuf.SetData(_spheres);
+		Shader.SetGlobalBuffer(SHADER_PARTICLE_BUF_IN, _particleBuf0);
 	}
 
 	void CheckInit() {
-		_nThreadsOfSimulation = nGroups * N_THREADS_IN_GROUP;
-		if (_particles == null || _particles.Length != _nThreadsOfSimulation) {
-			ReleaseParticleBufs();
-			_particles = new Particle[_nThreadsOfSimulation];
-			_particleBuf0 = new ComputeBuffer(_particles.Length, Marshal.SizeOf(_particles[0]));
-			_particleBuf1 = new ComputeBuffer(_particles.Length, Marshal.SizeOf(_particles[0]));
-			
-			for (var i = 0; i < _nThreadsOfSimulation; i++)
-				_particles[i] = Particle.Init;
-			_particleBuf0.SetData(_particles);
-			_particleBuf1.SetData(_particles);
-
-			_parent = new GameObject("Root Particle");
-			_particleGOs = new GameObject[_nThreadsOfSimulation];
-			for (var i = 0;  i < _nThreadsOfSimulation; i++) {
-				var go = _particleGOs[i] = (GameObject)Instantiate(particleFab, Vector3.zero, Quaternion.identity);
-				go.name = "Particle";
-				go.transform.parent = _parent.transform;
-				var mesh = go.GetComponent<MeshFilter>().mesh;
+		var nParticles = nParticleGroup * THREAD_N;
+		if (_particleGOs == null || _particleGOs.Length != nParticles) {
+			ReleaseParticle ();
+			_particleGOs = new GameObject[nParticles];
+			for (var i = 0; i < _particleGOs.Length; i++) {
+				var go = _particleGOs [i] = (GameObject)Instantiate (particleFab);
+				go.transform.parent = transform;
+				var mesh = go.GetComponent<MeshFilter> ().mesh;
 				var uv2 = new Vector2[mesh.vertexCount];
 				for (var j = 0; j < uv2.Length; j++)
-					uv2[j].x = i + 0.1f;
+					uv2 [j].x = i + 0.5f;
 				mesh.uv2 = uv2;
 			}
-		}
-		if (_spheres == null || _spheres.Length != spheres.Length) {
-			ReleaseSphereBufs();
-			if (spheres.Length > 0) {
-				_spheres = new Vector4[spheres.Length];
-				_sphereBuf = new ComputeBuffer(_spheres.Length, Marshal.SizeOf(typeof(Vector4)));
+			_particles = new Particle[nParticles];
+			for (var i = 0; i < _particles.Length; i++) {
+				var p = new Vector3(size.x * Random.value, size.y * Random.value, 0f);
+				_particles [i] = new Particle(p, 0f, 30f);
 			}
+			_particleBuf0 = new ComputeBuffer (nParticles, Marshal.SizeOf (_particles [0]));
+			_particleBuf1 = new ComputeBuffer (nParticles, Marshal.SizeOf (_particles [0]));
+			_particleBuf0.SetData (_particles);
+			_particleBuf1.SetData (_particles);
 		}
-		if (_emitParticles == null) {
-			ReleaseEmitBufs();
-			_nPrevEmit = -1;
-			_emitKeeper = new TickKeeper(nEmitsPerSec);
-			_emitIndices = new int[nGroupsOfEmit * N_THREADS_IN_GROUP];
-			for (var i = 0; i < _emitIndices.Length; i++)
-				_emitIndices[i] = -1;
-			_emitIndexBuf = new ComputeBuffer(_emitIndices.Length, Marshal.SizeOf(_emitIndices[0]));
-			_emitIndexBuf.SetData(_emitIndices);
-			_emitParticles = new Particle[_emitIndices.Length];
-			_emitParticleBuf = new ComputeBuffer(_emitParticles.Length, Marshal.SizeOf(_emitParticles[0]));
+		if (_potTex == null || _potTex.width != TEX_WIDTH) {
+			ReleasePotTex ();
+			_potTex = new RenderTexture (TEX_WIDTH, TEX_WIDTH, 0, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear);
+			_potTex.filterMode = FilterMode.Bilinear;
+			_potTex.enableRandomWrite = true;
+			_potTex.Create ();
 		}
+
+		curl.SetFloat(SHADER_GEO_2_NOISE, noiseScale);
+		curl.SetVector(SHADER_GEO_SIZE, new Vector4(size.x, size.y, 0f, 0f));
+		curl.SetVector(SHADER_PIX_2_NOISE, 
+		               new Vector4(size.x * noiseScale / _potTex.width, size.y * noiseScale / _potTex.height, 0f, 0f));
+		curl.SetVector(SHADER_GEO_2_UV, new Vector4(1f / size.x, 1f / size.y, 0f, 0f));
+	}
+	void SwapParticle() {
+		var tmp = _particleBuf0; _particleBuf0 = _particleBuf1; _particleBuf1 = tmp;
 	}
 
-	void Release() {
-		ReleaseParticleBufs();
-		ReleaseSphereBufs();
-		ReleaseEmitBufs();
+	void UpdatePotential() {
+		curl.SetFloat(SHADER_TIME, timeScale * Time.timeSinceLevelLoad);
+		curl.SetTexture(KERNEL_PRECOMPUTE, SHADER_POT_TEX_OUT, _potTex);
+		curl.Dispatch(KERNEL_PRECOMPUTE, _potTex.width / THREAD_WIDTH, _potTex.height / THREAD_WIDTH, 1);
 	}
-	void ReleaseParticleBufs() {
+
+	void UpdateParticle() {
+		var dt = Time.deltaTime;
+		for (var i = 0; i < _particles.Length; i++) {
+			var p = _particles[i];
+			if (p.t < p.life) {
+				p.t += dt;
+				_particles[i] = p;
+			}
+		}
+		curl.SetFloat(SHADER_DT, dt);
+		curl.SetFloat(SHADER_SPEED, particleSpeed);
+		curl.SetBuffer(KERNEL_SIMULATE, SHADER_PARTICLE_BUF_IN, _particleBuf0);
+		curl.SetBuffer(KERNEL_SIMULATE, SHADER_PARTICLE_BUF_OUT, _particleBuf1);
+		curl.SetTexture(KERNEL_SIMULATE, SHADER_POT_TEX_IN, _potTex);
+		curl.Dispatch(KERNEL_SIMULATE, nParticleGroup, 1, 1);
+		SwapParticle();
+	}
+
+	void OnDestroy() {
+		Destroy(_debugMesh);
+		ReleasePotTex();
+		ReleaseParticle();
+	}
+	void ReleasePotTex() {
+		if (_potTex != null)
+			_potTex.Release ();
+	}
+
+	void ReleaseParticle () {
+		if (_particleGOs != null) {
+			foreach (var go in _particleGOs) {
+				Destroy (go.GetComponent<MeshFilter> ().sharedMesh);
+				Destroy (go);
+			}
+		}
 		if (_particleBuf0 != null)
-			_particleBuf0.Release ();
+			_particleBuf0.Release();
 		if (_particleBuf1 != null)
-			_particleBuf1.Release ();
-		if (_particleGOs != null)
-			for (var i = 0; i < _particleGOs.Length; i++)
-				Destroy (_particleGOs [i]);
-		Destroy (_parent);
+			_particleBuf1.Release();
 	}
-	void ReleaseEmitBufs() {
-		if (_emitIndexBuf != null)
-			_emitIndexBuf.Release();
-		if (_emitParticleBuf != null)
-			_emitParticleBuf.Release();
+
+	void OnGUI() {
+		if (_debugMesh == null) {
+			var go = new GameObject("Debug Mesh");
+			go.hideFlags = HideFlags.DontSave;
+			go.transform.parent = transform;
+			go.AddComponent<MeshRenderer>();
+			go.renderer.sharedMaterial = debugMat;
+			go.AddComponent<MeshFilter>().sharedMesh = _debugMesh = new Mesh();
+			_debugMesh.vertices = new Vector3[]{ Vector3.zero, new Vector3(size.x, 0f, 0f), new Vector3(0f, size.y, 0f), new Vector3(size.x, size.y, 0f) };
+			_debugMesh.triangles = new int[]{ 0, 3, 1, 0, 2, 3 };
+			_debugMesh.uv = new Vector2[]{ new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) };
+		}
+
+		debugMat.mainTexture = _potTex;
 	}
-	void ReleaseSphereBufs() {
-		if (_sphereBuf != null)
-			_sphereBuf.Release();
-	}
-	void Swap() {
-		var tmpPos = _particleBuf0; _particleBuf0 = _particleBuf1; _particleBuf1 = tmpPos;
-	}
-	Vector2 RandomInEmitter() {
-		var es = emitter.localScale;
-		return (Vector2)emitter.position + new Vector2(es.x * RandomCenter(), es.y * RandomCenter());
-	}
-	float RandomCenter() { return Random.Range(-0.5f, 0.5f); }
 
 	[StructLayout(LayoutKind.Sequential)]
 	public struct Particle {

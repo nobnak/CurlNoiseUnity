@@ -1,7 +1,9 @@
 #pragma kernel Simulate
 #pragma kernel Emit
+#pragma kernel Precompute
 #include "SNoise.hlsl"
-#define WIDTH 64
+#define WIDTH 8
+#define N 64
 #define EPSILON 1e-3
 
 
@@ -16,15 +18,22 @@ struct Particle {
 };
 
 float Dt;
-float Time;
 float Speed;
-float NoiseScale;
 StructuredBuffer<float4> Spheres;
 StructuredBuffer<Particle> ParticleIn;
 RWStructuredBuffer<Particle> ParticleOut;
 
 StructuredBuffer<int> EmitIndices;
 StructuredBuffer<Particle> EmitParticles;
+
+float Time;
+float4 GeoSize;
+float Geo2Noise;
+float4 Pix2Noise;
+float4 Geo2UV;
+SamplerState samplerPotTexIn;
+Texture2D<float> PotTexIn;
+RWTexture2D<float> PotTexOut;
 
 
 
@@ -48,9 +57,7 @@ float2 ClosestOnSphere(float2 x, float4 sphere, out float dist, out float2 n) {
 	n = normalize(v);
 	return sphere.w * n + sphere.xy;
 }
-float Pot(float3 xt) {
-	float3 xt_s = xt * float3(NoiseScale, NoiseScale, 1.0);
-	
+float Pot(float2 x) {
 	uint nSpheres = 0;
 	uint stride = 0;
 	Spheres.GetDimensions(nSpheres, stride);
@@ -58,17 +65,18 @@ float Pot(float3 xt) {
 	float r = 1.0;
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
-		float dist = Dist2Sphere(xt.xy, sph);
-		r *= Ramp(dist * NoiseScale);
+		float dist = Dist2Sphere(x, sph);
+		r *= Ramp(dist * Geo2Noise);
 	}
-	return r * snoise(xt_s);
+	
+	float2 uv = x * Geo2UV.xy;
+	float p = PotTexIn.SampleLevel(samplerPotTexIn, uv, 0);
+	return r * p;
 }
 float2 Curl(float2 x) {
-	float3 xt = float3(x, Time);
-	float dpdx = Pot(xt + Dx.xyw) - Pot(xt - Dx.xyw);
-	float dpdy = Pot(xt + Dy.xyw) - Pot(xt - Dy.xyw);
-
-	return float2(dpdy, -dpdx) / (2.0 * EPSILON * NoiseScale);
+	float dpdx = Pot(x + Dx.xy) - Pot(x - Dx.xy);
+	float dpdy = Pot(x + Dy.xy) - Pot(x - Dy.xy);
+	return float2(dpdy, -dpdx) / (2.0 * EPSILON * Geo2Noise);
 }
 float2 Constraint(float2 x) {
 	uint nSpheres = 0;
@@ -84,12 +92,14 @@ float2 Constraint(float2 x) {
 			x = closest;
 	}
 	
+	x = clamp(x, 0, GeoSize.xy);
+	
 	return x;
 }
 
 
 
-[numthreads(WIDTH,1,1)]
+[numthreads(N,1,1)]
 void Simulate(uint3 id : SV_DispatchThreadID) {
 	Particle p = ParticleIn[id.x];
 	if (p.t < p.life) {
@@ -101,9 +111,14 @@ void Simulate(uint3 id : SV_DispatchThreadID) {
 	}
     ParticleOut[id.x] = p;
 }
-[numthreads(WIDTH,1,1)]
+[numthreads(N,1,1)]
 void Emit(uint3 id : SV_DispatchThreadID) {
 	int i = EmitIndices[id.x];
 	if (i >= 0)
 		ParticleOut[i] = EmitParticles[id.x];
+}
+[numthreads(WIDTH,WIDTH,1)]
+void Precompute(uint3 id : SV_DispatchThreadID) {
+	float3 xt = float3((id.xy + 0.5) * Pix2Noise.xy, Time);
+	PotTexOut[id.xy] = snoise(xt);
 }
