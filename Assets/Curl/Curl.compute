@@ -19,21 +19,22 @@ struct Particle {
 
 float Dt;
 float Speed;
-StructuredBuffer<float4> Spheres;
-StructuredBuffer<Particle> ParticleIn;
-RWStructuredBuffer<Particle> ParticleOut;
-
-StructuredBuffer<int> EmitIndices;
-StructuredBuffer<Particle> EmitParticles;
-
 float Time;
 float4 GeoSize;
 float Geo2Noise;
 float4 Pix2Noise;
 float4 Geo2UV;
+
+//StructuredBuffer<float4> Spheres;
+StructuredBuffer<Particle> ParticleIn;
+RWStructuredBuffer<Particle> ParticleOut;
+
 SamplerState samplerPotTexIn;
 Texture2D<float> PotTexIn;
 RWTexture2D<float> PotTexOut;
+
+StructuredBuffer<int> EmitIndices;
+StructuredBuffer<Particle> EmitParticles;
 
 
 
@@ -58,16 +59,18 @@ float2 ClosestOnSphere(float2 x, float4 sphere, out float dist, out float2 n) {
 	return sphere.w * n + sphere.xy;
 }
 float Pot(float2 x) {
+	float r = 1.0;
+
+	#if 0
 	uint nSpheres = 0;
 	uint stride = 0;
 	Spheres.GetDimensions(nSpheres, stride);
-	
-	float r = 1.0;
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
 		float dist = Dist2Sphere(x, sph);
 		r *= Ramp(dist * Geo2Noise);
 	}
+	#endif
 	
 	float2 uv = x * Geo2UV.xy;
 	float p = PotTexIn.SampleLevel(samplerPotTexIn, uv, 0);
@@ -79,6 +82,7 @@ float2 Curl(float2 x) {
 	return float2(dpdy, -dpdx) / (2.0 * EPSILON * Geo2Noise);
 }
 float2 Constraint(float2 x) {
+	#if 0
 	uint nSpheres = 0;
 	uint stride = 0;
 	Spheres.GetDimensions(nSpheres, stride);
@@ -91,6 +95,7 @@ float2 Constraint(float2 x) {
 		if (dist < 0.0)
 			x = closest;
 	}
+	#endif
 	
 	x = clamp(x, 0, GeoSize.xy);
 	
@@ -111,14 +116,14 @@ void Simulate(uint3 id : SV_DispatchThreadID) {
 	}
     ParticleOut[id.x] = p;
 }
+[numthreads(WIDTH,WIDTH,1)]
+void Precompute(uint3 id : SV_DispatchThreadID) {
+	float3 xt = float3((id.xy + 0.5) * Pix2Noise.xy, Time);
+	PotTexOut[id.xy] = snoise(xt);
+}
 [numthreads(N,1,1)]
 void Emit(uint3 id : SV_DispatchThreadID) {
 	int i = EmitIndices[id.x];
 	if (i >= 0)
 		ParticleOut[i] = EmitParticles[id.x];
-}
-[numthreads(WIDTH,WIDTH,1)]
-void Precompute(uint3 id : SV_DispatchThreadID) {
-	float3 xt = float3((id.xy + 0.5) * Pix2Noise.xy, Time);
-	PotTexOut[id.xy] = snoise(xt);
 }
