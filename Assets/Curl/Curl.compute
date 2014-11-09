@@ -5,6 +5,7 @@
 #define WIDTH 8
 #define N 64
 #define EPSILON 1e-3
+//#define USE_SPHERE
 
 
 static const float4 Dx = float4(EPSILON, 0, 0, 0);
@@ -18,24 +19,26 @@ struct Particle {
 };
 
 float Dt;
-float Speed;
+float CurlSpeed;
+float FlowSpeed;
 float Time;
 float4 GeoSize;
 float Geo2Noise;
 float4 Pix2Noise;
 float4 Geo2UV;
 
-//StructuredBuffer<float4> Spheres;
+StructuredBuffer<float4> Spheres;
 StructuredBuffer<Particle> ParticleIn;
 RWStructuredBuffer<Particle> ParticleOut;
-
-SamplerState samplerPotTexIn;
-Texture2D<float> PotTexIn;
-RWTexture2D<float> PotTexOut;
 
 StructuredBuffer<int> EmitIndices;
 StructuredBuffer<Particle> EmitParticles;
 
+SamplerState samplerPotTexIn;
+Texture2D<float> PotTexIn;
+RWTexture2D<float> PotTexOut;
+SamplerState samplerFlowTex;
+Texture2D<float4> FlowTex;
 
 
 float Ramp(float r) {
@@ -61,7 +64,7 @@ float2 ClosestOnSphere(float2 x, float4 sphere, out float dist, out float2 n) {
 float Pot(float2 x) {
 	float r = 1.0;
 
-	#if 0
+	#ifdef USE_SPHERE
 	uint nSpheres = 0;
 	uint stride = 0;
 	Spheres.GetDimensions(nSpheres, stride);
@@ -82,7 +85,7 @@ float2 Curl(float2 x) {
 	return float2(dpdy, -dpdx) / (2.0 * EPSILON * Geo2Noise);
 }
 float2 Constraint(float2 x) {
-	#if 0
+	#ifdef USE_SPHERE
 	uint nSpheres = 0;
 	uint stride = 0;
 	Spheres.GetDimensions(nSpheres, stride);
@@ -108,8 +111,10 @@ float2 Constraint(float2 x) {
 void Simulate(uint3 id : SV_DispatchThreadID) {
 	Particle p = ParticleIn[id.x];
 	if (p.t < p.life) {
+		float2 uv = p.x * Geo2UV.xy;
+		float2 n = 2.0 * FlowTex.SampleLevel(samplerFlowTex, uv, 0).wy - 1.0;
 		p.t += Dt;
-		p.x += Speed * Curl(p.x) * Dt;
+		p.x += (CurlSpeed * Curl(p.x) + FlowSpeed * n) * Dt;
 		p.x = Constraint(p.x);
 	} else {
 		p.x = DeathPos.xy;

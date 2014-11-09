@@ -16,27 +16,32 @@ public class Curl : MonoBehaviour {
 	public const string SHADER_GEO_2_NOISE = "Geo2Noise";
 	public const string SHADER_GEO_2_UV = "Geo2UV";
 	public const string SHADER_TIME = "Time";
-	public const string SHADER_SPEED = "Speed";
+	public const string SHADER_CURL_SPEED = "CurlSpeed";
 	public const string SHADER_DT = "Dt";
 	public const string SHADER_GEO_SIZE = "GeoSize";
 	public const string SHADER_PARTICLE_BUF_IN = "ParticleIn";
 	public const string SHADER_PARTICLE_BUF_OUT = "ParticleOut";
 	public const string SHADER_EMIT_INDEX_BUF = "EmitIndices";
 	public const string SHADER_EMIT_PARTICLE_BUF = "EmitParticles";
+	public const string SHADER_FLOW_SPEED = "FlowSpeed";
+	public const string SHADER_FLOW_TEX = "FlowTex";
 
 	public int nParticleGroup = 100;
 	public int nEmitGroup = 2;
 	public int nEmitPerSec = 100;
 	public Vector2 size = new Vector2(100f, 100f);
-	public float particleSpeed = 10f;
+	public float curlSpeed = 10f;
 	public float timeScale = 0.1f;
 	public float noiseScale = 0.1f;
 	public ComputeShader curl;
 	public KeyCode debugKey;
-	public Material debugMat;
+	public Material debugColorMat;
+	public Material debugNormalMat;
 	public float particleLife = 30f;
 	public GameObject particleFab;
 	public Transform emitter;
+	public float flowSpeed = 0f;
+	public Texture2D flowTex;
 
 	private Vector4 _noiseSize;
 	private RenderTexture _potTex;
@@ -77,10 +82,12 @@ public class Curl : MonoBehaviour {
 
 		UpdateParticle(dt);
 		curl.SetFloat(SHADER_DT, dt);
-		curl.SetFloat(SHADER_SPEED, particleSpeed);
+		curl.SetFloat(SHADER_CURL_SPEED, curlSpeed);
+		curl.SetFloat(SHADER_FLOW_SPEED, flowSpeed);
 		curl.SetBuffer(KERNEL_SIMULATE, SHADER_PARTICLE_BUF_IN, _particleBuf0);
 		curl.SetBuffer(KERNEL_SIMULATE, SHADER_PARTICLE_BUF_OUT, _particleBuf1);
 		curl.SetTexture(KERNEL_SIMULATE, SHADER_POT_TEX_IN, _potTex);
+		curl.SetTexture(KERNEL_SIMULATE, SHADER_FLOW_TEX, flowTex);
 		curl.Dispatch(KERNEL_SIMULATE, nParticleGroup, 1, 1);
 		SwapParticle();
 
@@ -205,23 +212,29 @@ public class Curl : MonoBehaviour {
 		}
 
 		if (Event.current.type.Equals(EventType.Repaint)) {
+			if (_debugMesh == null) {
+				_debugGO = new GameObject("Debug Mesh");
+				_debugGO.hideFlags = HideFlags.DontSave;
+				_debugGO.transform.parent = transform;
+				_debugGO.transform.localPosition = new Vector3(0f, 0f, 1f);
+				_debugGO.AddComponent<MeshRenderer>();
+				_debugGO.AddComponent<MeshFilter>().sharedMesh = _debugMesh = new Mesh();
+				_debugMesh.vertices = new Vector3[]{ Vector3.zero, new Vector3(size.x, 0f, 0f), new Vector3(0f, size.y, 0f), new Vector3(size.x, size.y, 0f) };
+				_debugMesh.triangles = new int[]{ 0, 3, 1, 0, 2, 3 };
+				_debugMesh.uv = new Vector2[]{ new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) };
+			}
+
 			var active = false;
 			switch (_debugMode) {
 			case 1:
-				if (_debugMesh == null) {
-					_debugGO = new GameObject("Debug Mesh");
-					_debugGO.hideFlags = HideFlags.DontSave;
-					_debugGO.transform.parent = transform;
-					_debugGO.transform.localPosition = new Vector3(0f, 0f, 1f);
-					_debugGO.AddComponent<MeshRenderer>();
-					_debugGO.renderer.sharedMaterial = debugMat;
-					_debugGO.AddComponent<MeshFilter>().sharedMesh = _debugMesh = new Mesh();
-					_debugMesh.vertices = new Vector3[]{ Vector3.zero, new Vector3(size.x, 0f, 0f), new Vector3(0f, size.y, 0f), new Vector3(size.x, size.y, 0f) };
-					_debugMesh.triangles = new int[]{ 0, 3, 1, 0, 2, 3 };
-					_debugMesh.uv = new Vector2[]{ new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f) };
-				}
 				active = true;
-				debugMat.mainTexture = _potTex;
+				_debugGO.renderer.sharedMaterial = debugColorMat;
+				debugColorMat.mainTexture = _potTex;
+				break;
+			case 2:
+				active = true;
+				_debugGO.renderer.sharedMaterial = debugNormalMat;
+				debugNormalMat.mainTexture = flowTex;
 				break;
 			}
 			if (_debugGO != null)

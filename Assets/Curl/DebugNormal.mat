@@ -6,8 +6,8 @@ Material:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_Name: Debug
-  m_Shader: {fileID: 4800000, guid: fb6d8f6d0b0d99a4b938f2a47ecba8b4, type: 3}
+  m_Name: DebugNormal
+  m_Shader: {fileID: 4800000, guid: 1a7216b5422ca1f48aa17d629731aff8, type: 3}
   m_ShaderKeywords: []
   m_CustomRenderQueue: -1
   m_SavedProperties:
@@ -17,7 +17,7 @@ Material:
         first:
           name: _MainTex
         second:
-          m_Texture: {fileID: 0}
+          m_Texture: {fileID: 2800000, guid: 883abadef1bd1cf4b82223d1bd8ed489, type: 3}
           m_Scale: {x: 1, y: 1}
           m_Offset: {x: 0, y: 0}
     m_Floats: {}
