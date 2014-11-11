@@ -1,8 +1,8 @@
 GPU Particle System for Unity
 ==============
 ## Features
-* Curl Noise[1]
-* Flow Map
+* Curl Noise [1]
+* Flow Map (Based on Normal Map)
 
 [![ScreenShot](Html/Img/Screenshot01.jpg)](https://vimeo.com/111343601)
 
