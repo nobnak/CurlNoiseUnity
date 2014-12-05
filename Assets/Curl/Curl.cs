@@ -19,6 +19,7 @@ public class Curl : MonoBehaviour {
 	public const string SHADER_CURL_SPEED = "CurlSpeed";
 	public const string SHADER_DT = "Dt";
 	public const string SHADER_GEO_SIZE = "GeoSize";
+	public const string SHADER_SPHERE_BUF = "Spheres";
 	public const string SHADER_PARTICLE_BUF_IN = "ParticleIn";
 	public const string SHADER_PARTICLE_BUF_OUT = "ParticleOut";
 	public const string SHADER_EMIT_INDEX_BUF = "EmitIndices";
@@ -42,6 +43,8 @@ public class Curl : MonoBehaviour {
 	public Transform emitter;
 	public float flowSpeed = 0f;
 	public Texture2D flowTex;
+	public int nMaxSpheres = 16;
+	public Transform[] spheres;
 
 	private Vector4 _noiseSize;
 	private RenderTexture _potTex;
@@ -58,6 +61,9 @@ public class Curl : MonoBehaviour {
 	private ComputeBuffer _emitIndexBuf, _emitParticleBuf;
 	private TickKeeper _ticker;
 	private int _nPrevEmit = 0;
+
+	private Vector4[] _spheres;
+	private ComputeBuffer _sphereBuf;
 
 	void Update() {
 		var dt = Time.deltaTime;
@@ -81,11 +87,13 @@ public class Curl : MonoBehaviour {
 		curl.Dispatch(KERNEL_EMIT, nEmitGroup, 1, 1);
 
 		UpdateParticle(dt);
+		UpdateSpheres();
 		curl.SetFloat(SHADER_DT, dt);
 		curl.SetFloat(SHADER_CURL_SPEED, curlSpeed);
 		curl.SetFloat(SHADER_FLOW_SPEED, flowSpeed);
 		curl.SetBuffer(KERNEL_SIMULATE, SHADER_PARTICLE_BUF_IN, _particleBuf0);
 		curl.SetBuffer(KERNEL_SIMULATE, SHADER_PARTICLE_BUF_OUT, _particleBuf1);
+		curl.SetBuffer(KERNEL_SIMULATE, SHADER_SPHERE_BUF, _sphereBuf);
 		curl.SetTexture(KERNEL_SIMULATE, SHADER_POT_TEX_IN, _potTex);
 		curl.SetTexture(KERNEL_SIMULATE, SHADER_FLOW_TEX, flowTex);
 		curl.Dispatch(KERNEL_SIMULATE, nParticleGroup, 1, 1);
@@ -139,6 +147,13 @@ public class Curl : MonoBehaviour {
 			_ticker = new TickKeeper(nEmitPerSec);
 		}
 		_ticker.Fps = nEmitPerSec;
+
+		if (_spheres == null) {
+			ReleaseSpheres();
+			_spheres = new Vector4[nMaxSpheres];
+			_sphereBuf = new ComputeBuffer(nMaxSpheres, Marshal.SizeOf(_spheres[0]));
+			_sphereBuf.SetData(_spheres);
+		}
 	}
 	void SwapParticle() {
 		var tmp = _particleBuf0; _particleBuf0 = _particleBuf1; _particleBuf1 = tmp;
@@ -174,6 +189,19 @@ public class Curl : MonoBehaviour {
 		_emitParticleBuf.SetData(_emitParticles);
 	}
 
+	void UpdateSpheres() {
+		var nSpheres = spheres.Length;
+		for (var i = 0; i < nMaxSpheres; i++) {
+			if (i < nSpheres) {
+				var sph = spheres[i];
+				var pos = sph.position;
+				_spheres[i] = new Vector4(pos.x, pos.y, 0f, 0.5f * sph.localScale.x);
+			} else
+				_spheres[i] = Vector4.zero;
+		}
+		_sphereBuf.SetData(_spheres);
+	}
+
 	void OnDestroy() {
 		Destroy(_debugMesh);
 		ReleasePotTex();
@@ -203,6 +231,10 @@ public class Curl : MonoBehaviour {
 			_emitIndexBuf.Release ();
 		if (_emitParticleBuf != null)
 			_emitParticleBuf.Release ();
+	}
+	void ReleaseSpheres() {
+		if (_sphereBuf != null)
+			_sphereBuf.Release();
 	}
 
 	void OnGUI() {

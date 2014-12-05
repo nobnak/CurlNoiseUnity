@@ -5,7 +5,7 @@
 #define WIDTH 8
 #define N 64
 #define EPSILON 1e-3
-//#define USE_SPHERE
+#define USE_SPHERE
 
 
 static const float4 Dx = float4(EPSILON, 0, 0, 0);
@@ -70,6 +70,8 @@ float Pot(float2 x) {
 	Spheres.GetDimensions(nSpheres, stride);
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
+		if (sph.w < EPSILON)
+			continue;
 		float dist = Dist2Sphere(x, sph);
 		r *= Ramp(dist * Geo2Noise);
 	}
@@ -92,6 +94,8 @@ float2 Constraint(float2 x) {
 	
 	for (uint i = 0; i < nSpheres; i++) {
 		float4 sph = Spheres[i];
+		if (sph.w < EPSILON)
+			continue;
 		float dist = 0.0;
 		float2 n = 0.0;
 		float2 closest = ClosestOnSphere(x, sph, dist, n);
