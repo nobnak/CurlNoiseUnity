@@ -40,7 +40,7 @@ public class Curl : MonoBehaviour {
 	public Material debugNormalMat;
 	public float particleLife = 30f;
 	public GameObject particleFab;
-	public Transform emitter;
+	public Transform[] emitters;
 	public float flowSpeed = 0f;
 	public Texture2D flowTex;
 	public int nMaxSpheres = 16;
@@ -170,6 +170,10 @@ public class Curl : MonoBehaviour {
 	}
 
 	void UpdateEmitter() {
+		if (emitters.Length == 0)
+			return;
+		var emitter = emitters[Random.Range(0, emitters.Length)];
+
 		var nEmit = _ticker.Count();
 		nEmit = (nEmit > _emitIndices.Length ? _emitIndices.Length : nEmit);
 		var emitCount = 0;
@@ -207,6 +211,7 @@ public class Curl : MonoBehaviour {
 		ReleasePotTex();
 		ReleaseParticle();
 		ReleaseEmitter();
+		ReleaseSpheres();
 	}
 	void ReleasePotTex() {
 		if (_potTex != null)
