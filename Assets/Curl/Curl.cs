@@ -7,6 +7,7 @@ public class Curl : MonoBehaviour {
 	public const int THREAD_WIDTH = 8;
 	public const int THREAD_N = THREAD_WIDTH * THREAD_WIDTH;
 	public const int TEX_WIDTH = 512;
+	public const int N_PARTICLES_IN_MESH = 10000;
 	public const int KERNEL_SIMULATE = 0;
 	public const int KERNEL_EMIT = 1;
 	public const int KERNEL_PRECOMPUTE = 2;
@@ -104,16 +105,23 @@ public class Curl : MonoBehaviour {
 
 	void CheckInit() {
 		var nParticles = nParticleGroup * THREAD_N;
-		if (_particleGOs == null || _particleGOs.Length != nParticles) {
+		if (_particleGOs == null) {
 			ReleaseParticle ();
-			_particleGOs = new GameObject[nParticles];
+			var nMeshes = Mathf.CeilToInt((float)nParticles / N_PARTICLES_IN_MESH);
+			_particleGOs = new GameObject[nMeshes];
+			var iParticle = 0;
 			for (var i = 0; i < _particleGOs.Length; i++) {
 				var go = _particleGOs [i] = (GameObject)Instantiate (particleFab);
 				go.transform.parent = transform;
 				var mesh = go.GetComponent<MeshFilter>().mesh;
 				var uv2 = new Vector2[mesh.vertexCount];
-				for (var j = 0; j < uv2.Length; j++)
-					uv2 [j].x = i + 0.5f;
+				for (var j = 0; j < uv2.Length; j+=4) {
+					uv2[j] = uv2[j+1] = uv2[j+2] = uv2[j+3] = 
+						(iParticle < nParticles
+						 ? new Vector2(iParticle % N_PARTICLES_IN_MESH, iParticle / N_PARTICLES_IN_MESH)
+						 : new Vector2(-1, 0));
+					iParticle++;
+				}
 				mesh.uv2 = uv2;
 			}
 			_particles = new Particle[nParticles];
@@ -186,6 +194,7 @@ public class Curl : MonoBehaviour {
 				emitCount++;
 			}
 		}
+		nEmit = emitCount;
 		for (var i = nEmit; i < _nPrevEmit; i++)
 			_emitIndices[i] = -1;
 		_nPrevEmit = nEmit;
@@ -265,12 +274,12 @@ public class Curl : MonoBehaviour {
 			switch (_debugMode) {
 			case 1:
 				active = true;
-				_debugGO.renderer.sharedMaterial = debugColorMat;
+				_debugGO.GetComponent<Renderer>().sharedMaterial = debugColorMat;
 				debugColorMat.mainTexture = _potTex;
 				break;
 			case 2:
 				active = true;
-				_debugGO.renderer.sharedMaterial = debugNormalMat;
+				_debugGO.GetComponent<Renderer>().sharedMaterial = debugNormalMat;
 				debugNormalMat.mainTexture = flowTex;
 				break;
 			}

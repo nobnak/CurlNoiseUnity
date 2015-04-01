@@ -8,6 +8,7 @@
 		
 		Pass {
 			CGPROGRAM
+			#define COMB_PARTICLES 10000
 			#pragma target 5.0
 			#pragma vertex vert
 			#pragma fragment frag
@@ -33,10 +34,18 @@
 			};
 			
 			vs2ps vert(Input IN) {
-				int id = int(IN.uv2.x);
-				Particle p = ParticleIn[id];
 				float4 posWorld = mul(_Object2World, IN.vertex);
-				posWorld.xy += p.x;
+
+				int id = int(IN.uv2.x + 0.5) + COMB_PARTICLES * int(IN.uv2.y + 0.5);
+				if (id < 0) {
+					posWorld.xy += float2(10000, 10000);
+				} else {
+					Particle p = ParticleIn[id];
+					if (p.life <= 0)
+						posWorld.xy += float2(10000, 10000);
+					else
+						posWorld.xy += p.x;
+				}
 			
 				vs2ps OUT;
 				OUT.vertex = mul(UNITY_MATRIX_P, mul(UNITY_MATRIX_V, posWorld));
